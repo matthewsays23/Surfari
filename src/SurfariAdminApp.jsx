@@ -3,6 +3,7 @@ import Topbar from "./components/Topbar";
 import Sidebar from "./components/Sidebar";
 import HomeScreen from "./components/HomeScreen";
 import Sessions from "./components/Sessions";
+import ActivityPage from "./components/Activity";
 
 export default function SurfariAdminApp() {
   const [activeTab, setActiveTab] = useState("home");
@@ -15,6 +16,7 @@ export default function SurfariAdminApp() {
         <main className="flex-1 py-8">
           {activeTab === "home" && <HomeScreen />}
           {activeTab === "sessions" && <Sessions />}
+          {activeTab === "activity" && <ActivityPage />}
         </main>
       </div>
     </div>
