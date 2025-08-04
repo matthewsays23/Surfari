@@ -5,6 +5,7 @@ import HomeScreen from "./components/HomeScreen";
 import Sessions from "./components/Sessions";
 import ActivityPage from "./components/Activity";
 import ModerationPage from "./components/Moderation";
+import OrdersPage from "./components/Orders";
 
 export default function SurfariAdminApp() {
   const [activeTab, setActiveTab] = useState("home");
@@ -19,6 +20,7 @@ export default function SurfariAdminApp() {
           {activeTab === "sessions" && <Sessions />}
           {activeTab === "activity" && <ActivityPage />}
           {activeTab === "moderation" && <ModerationPage />}
+          {activeTab === "orders" && <OrdersPage />}
         </main>
       </div>
     </div>
