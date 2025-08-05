@@ -1,16 +1,11 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import SurfariAdminApp from "./SurfariAdminApp";
-import AuthSuccess from "./pages/AuthSuccess";
-import AccessDenied from "./pages/AccessDenied";
+import React from "react";
+import ReactDOM from "react-dom/client";
+import "./index.css"; // ✅ Tailwind styles
 
-export default function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<SurfariAdminApp />} />
-        <Route path="/auth/success" element={<AuthSuccess />} />
-        <Route path="/access-denied" element={<AccessDenied />} />
-      </Routes>
-    </BrowserRouter>
-  );
-}
+import App from "./App"; // ✅ your routes live here
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
