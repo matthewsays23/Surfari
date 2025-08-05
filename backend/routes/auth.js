@@ -66,7 +66,7 @@ router.get("/verify", async (req, res) => {
   if (!userId) return res.status(403).json({ error: "Invalid token" });
 
   try {
-    const response = await axios.get(`https://groups.roblox.com/v1/users/${userId}/groups`);
+    const response = await axios.get(`https://groups.roblox.com/v2/users/${userId}/groups/roles`);
     const groups = response.data.data;
 
     const surfariGroup = groups.find(g => g.group.id === GROUP_ID);
