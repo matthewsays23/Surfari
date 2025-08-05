@@ -8,7 +8,7 @@ export default function AccessGate({ children }) {
   useEffect(() => {
     const token = localStorage.getItem("surfari_token");
     if (!token) {
-      window.location.href = "https://surfari-backend.onrender.com/auth/roblox";
+      window.location.href = "https://surfari.onrender.com/auth/roblox";
       return;
     }
 
