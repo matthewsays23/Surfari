@@ -16,6 +16,10 @@ router.get("/roblox", (req, res) => {
   res.redirect(robloxAuthUrl);
 });
 
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || "your-strong-secret";
+
 router.get("/callback", async (req, res) => {
   const code = req.query.code;
   if (!code) return res.status(400).json({ error: "Missing code" });
@@ -30,9 +34,7 @@ router.get("/callback", async (req, res) => {
         client_secret: process.env.ROBLOX_CLIENT_SECRET,
         redirect_uri: process.env.ROBLOX_REDIRECT_URI,
       }),
-      {
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      }
+      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
     );
 
     const { access_token } = response.data;
@@ -42,15 +44,19 @@ router.get("/callback", async (req, res) => {
     });
 
     const robloxUser = userInfo.data;
-    const token = `token-${robloxUser.sub}-${Date.now()}`;
-    sessions.set(token, robloxUser.sub);
 
-    const redirectUrl = `${process.env.FRONTEND_URL}/auth/success?token=${token}`;
-    console.log("Redirecting user to:", redirectUrl);
-    res.redirect(redirectUrl);
+    // 🔑 Generate JWT
+    const token = jwt.sign(
+      { sub: robloxUser.sub },
+      JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    // ✅ Redirect with token
+    res.redirect(`${process.env.FRONTEND_URL}/auth/success?token=${token}`);
   } catch (err) {
     console.error("OAuth callback error:", err.response?.data || err.message);
-    res.status(500).json({ error: "OAuth callback failed" });
+    return res.status(500).json({ error: "OAuth callback failed" });
   }
 });
 
@@ -58,10 +64,10 @@ router.get("/verify", async (req, res) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "Missing token" });
 
-  const userId = sessions.get(token);
-  if (!userId) return res.status(403).json({ error: "Invalid token" });
-
   try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const userId = decoded.sub;
+
     const response = await axios.get(`https://groups.roblox.com/v1/users/${userId}/groups`);
     const groups = response.data.data;
 
@@ -73,7 +79,7 @@ router.get("/verify", async (req, res) => {
     return res.json({ status: "Access granted", userId });
   } catch (err) {
     console.error("Verify error:", err.message);
-    return res.status(500).json({ error: "Verification failed" });
+    return res.status(403).json({ error: "Invalid or expired token" });
   }
 });
 
