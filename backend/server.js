@@ -14,10 +14,10 @@ import cors from "cors";
 const app = express();
 
 app.use(cors({
-  origin: process.env.FRONTEND_URL,
+  origin: ["https://surfari.io"],
   credentials: true,
 }));
-app.use(express.json());
+
 
 // Mount your /auth routes here
 const { default: authRoutes } = await import("./routes/auth.js");
