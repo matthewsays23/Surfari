@@ -17,11 +17,11 @@ router.get("/roblox", (req, res) => {
 // Step 2: Handle Roblox OAuth callback
 router.get("/callback", async (req, res) => {
   const code = req.query.code;
-  if (!code) return res.status(400).send("Missing authorization code");
+
+  if (!code) return res.status(400).json({ error: "Missing code" });
 
   try {
-    // Exchange code for token
-    const tokenRes = await axios.post(
+    const response = await axios.post(
       "https://apis.roblox.com/oauth/v1/token",
       new URLSearchParams({
         grant_type: "authorization_code",
@@ -31,38 +31,25 @@ router.get("/callback", async (req, res) => {
         redirect_uri: process.env.ROBLOX_REDIRECT_URI,
       }),
       {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
       }
     );
 
-    const access_token = tokenRes.data.access_token;
+    const { access_token } = response.data;
 
-    // Get user info
-    const userRes = await axios.get("https://apis.roblox.com/oauth/v1/userinfo", {
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-      },
+    const userInfo = await axios.get("https://apis.roblox.com/oauth/v1/userinfo", {
+      headers: { Authorization: `Bearer ${access_token}` },
     });
 
-    const robloxUser = userRes.data;
+    const robloxUser = userInfo.data;
 
-    // Step 3: Create a secure session token
-    const token = jwt.sign(
-      {
-        userId: robloxUser.sub,
-        username: robloxUser.name,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
+    // TODO: Generate JWT or session token here
+    const token = "mock-token-for-" + robloxUser.sub;
 
-    // Step 4: Redirect to frontend with token
-    res.redirect(`${process.env.FRONTEND_URL}/auth/success?token=${token}`);
+    return res.json({ token });
   } catch (err) {
     console.error("OAuth callback error:", err.response?.data || err.message);
-    res.redirect(`${process.env.FRONTEND_URL}/access-denied`);
+    return res.status(500).json({ error: "OAuth callback failed" });
   }
 });
 

@@ -1,30 +1,33 @@
-import React, { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
-export default function AccessGate({ children }) {
-  const [allowed, setAllowed] = useState(null);
+export default function AuthCallback() {
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const token = localStorage.getItem("surfari_token");
-    if (!token) {
-      // No token → go to Roblox login
-      window.location.href = `${import.meta.env.VITE_API_URL}/auth/roblox`;
+    const code = new URLSearchParams(window.location.search).get("code");
+
+    if (!code) {
+      navigate("/access-denied");
       return;
     }
 
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1])); // Decode JWT
-      if (payload.isAdmin) {
-        setAllowed(true);
-      } else {
-        setAllowed(false);
-      }
-    } catch {
-      setAllowed(false);
-    }
+    // Send code to backend
+    fetch("https://surfari.onrender.com/auth/callback?code=" + code)
+      .then(res => res.json())
+      .then(data => {
+        if (data.token) {
+          localStorage.setItem("surfari_token", data.token);
+          navigate("/");
+        } else {
+          navigate("/access-denied");
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        navigate("/access-denied");
+      });
   }, []);
 
-  if (allowed === null) return <div className="p-6">Checking access...</div>;
-  if (!allowed) return <div className="p-6 text-red-500">Access Denied</div>;
-
-  return <>{children}</>;
+  return <div className="p-6">Signing you in...</div>;
 }
