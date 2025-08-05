@@ -1,33 +1,32 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react"; // Optional loading spinner icon
 
-export default function AuthSuccess() {
+export default function AuthCallback() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
-    if (token) {
-      localStorage.setItem("surfari_token", token);
-      setTimeout(() => navigate("/"), 1500); // short delay for smoother UX
-    } else {
+    const code = new URLSearchParams(window.location.search).get("code");
+
+    if (!code) {
       navigate("/access-denied");
+      return;
     }
+
+    fetch(`https://surfari.onrender.com/auth/callback?code=${code}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.token) {
+          localStorage.setItem("surfari_token", data.token);
+          navigate("/"); // go to dashboard
+        } else {
+          navigate("/access-denied");
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        navigate("/access-denied");
+      });
   }, []);
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-100 via-amber-50 to-emerald-100">
-      <div className="text-center space-y-4">
-        <img
-          src="/surfari-initial.png"
-          alt="Surfari Logo"
-          className="w-16 h-16 mx-auto drop-shadow-md"
-        />
-        <h1 className="text-xl font-semibold text-orange-800">Authenticating...</h1>
-        <p className="text-gray-600">Please wait while we sign you in.</p>
-        <Loader2 className="mx-auto h-6 w-6 animate-spin text-orange-500" />
-      </div>
-    </div>
-  );
+  return <div className="p-6">Authenticating via callback...</div>;
 }
