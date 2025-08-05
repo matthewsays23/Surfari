@@ -1,33 +1,33 @@
-import { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-export default function AuthCallback() {
+export default function AccessGate({ children }) {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const code = new URLSearchParams(window.location.search).get("code");
-
-    if (!code) {
-      navigate("/access-denied");
+    const token = localStorage.getItem("surfari_token");
+    if (!token) {
+      navigate("/auth/roblox");
       return;
     }
 
-    // Send code to backend
-    fetch("https://surfari.onrender.com/auth/callback?code=" + code)
-      .then(res => res.json())
-      .then(data => {
-        if (data.token) {
-          localStorage.setItem("surfari_token", data.token);
-          navigate("/");
-        } else {
-          navigate("/access-denied");
-        }
+    // Optional: verify token with backend
+    fetch("https://surfari.onrender.com/auth/verify", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("Not authorized");
+        return res.json();
       })
-      .catch(err => {
-        console.error(err);
+      .then(() => setLoading(false))
+      .catch(() => {
+        localStorage.removeItem("surfari_token");
         navigate("/access-denied");
       });
   }, []);
 
-  return <div className="p-6">Signing you in...</div>;
+  if (loading) return <div className="p-6">Checking access...</div>;
+  return <>{children}</>;
 }
+

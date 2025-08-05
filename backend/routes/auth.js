@@ -1,23 +1,19 @@
 import express from "express";
 import axios from "axios";
-import jwt from "jsonwebtoken";
 
 const router = express.Router();
 
-// Step 1: Redirect user to Roblox auth page
 router.get("/roblox", (req, res) => {
   const clientId = process.env.ROBLOX_CLIENT_ID;
   const redirectUri = encodeURIComponent(process.env.ROBLOX_REDIRECT_URI);
   const scope = "openid profile";
 
-  const authUrl = `https://apis.roblox.com/oauth/v1/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=${scope}`;
-  res.redirect(authUrl);
+  const robloxAuthUrl = `https://apis.roblox.com/oauth/v1/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=${scope}`;
+  res.redirect(robloxAuthUrl);
 });
 
-// Step 2: Handle Roblox OAuth callback
 router.get("/callback", async (req, res) => {
   const code = req.query.code;
-
   if (!code) return res.status(400).json({ error: "Missing code" });
 
   try {
@@ -42,9 +38,7 @@ router.get("/callback", async (req, res) => {
     });
 
     const robloxUser = userInfo.data;
-
-    // TODO: Generate JWT or session token here
-    const token = "mock-token-for-" + robloxUser.sub;
+    const token = "mock-token-for-" + robloxUser.sub; // Replace with real JWT logic if needed
 
     return res.json({ token });
   } catch (err) {
