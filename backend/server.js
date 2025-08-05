@@ -1,3 +1,10 @@
+// Replace the in-memory Map with a MongoDB collection
+import { MongoClient } from "mongodb";
+const client = new MongoClient(process.env.MONGODB_URI);
+await client.connect();
+const db = client.db("surfari");
+const sessions = db.collection("sessions");
+
 import dotenv from "dotenv";
 dotenv.config();
 
