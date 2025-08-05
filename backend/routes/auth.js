@@ -40,7 +40,7 @@ router.get("/callback", async (req, res) => {
     const robloxUser = userInfo.data;
     const token = "mock-token-for-" + robloxUser.sub; // Replace with real JWT logic if needed
 
-    return res.json({ token });
+    res.redirect(`${process.env.FRONTEND_URL}/auth/success?token=${token}`);
   } catch (err) {
     console.error("OAuth callback error:", err.response?.data || err.message);
     return res.status(500).json({ error: "OAuth callback failed" });
