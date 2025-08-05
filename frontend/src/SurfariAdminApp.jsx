@@ -1,28 +1,25 @@
 import React, { useState } from "react";
-import Topbar from "./components/Topbar";
+import AccessGate from "./components/AccessGate";
 import Sidebar from "./components/Sidebar";
 import HomeScreen from "./components/HomeScreen";
-import Sessions from "./components/Sessions";
-import ActivityPage from "./components/Activity";
-import OrdersPage from "./components/Orders";
-import ModerationPage from "./components/Moderation";
+import Activity from "./components/Activity";
+import Moderation from "./components/Moderation";
+import Orders from "./components/Orders";
 
 export default function SurfariAdminApp() {
   const [activeTab, setActiveTab] = useState("home");
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(120deg,#fff7ed_0%,#ecfeff_100%)]">
-      <Topbar />
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex gap-6">
+    <AccessGate>
+      <div className="flex">
         <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-        <main className="flex-1 py-8">
+        <main className="flex-1 p-6">
           {activeTab === "home" && <HomeScreen />}
-          {activeTab === "sessions" && <Sessions />}
-          {activeTab === "activity" && <ActivityPage />}
-          {activeTab === "orders" && <OrdersPage />}
-          {activeTab === "moderation" && <ModerationPage />}
+          {activeTab === "activity" && <Activity />}
+          {activeTab === "moderation" && <Moderation />}
+          {activeTab === "orders" && <Orders />}
         </main>
       </div>
-    </div>
+    </AccessGate>
   );
 }

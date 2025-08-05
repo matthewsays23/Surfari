@@ -1,16 +1,20 @@
-import express from "express";
-import cors from "cors";
 import dotenv from "dotenv";
-
-import authRoutes from "./routes/auth.js";
-
 dotenv.config();
 
+import express from "express";
+import cors from "cors";
+
 const app = express();
-app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
+
+app.use(cors({
+  origin: process.env.FRONTEND_URL,
+  credentials: true
+}));
+
 app.use(express.json());
 
-// Routes
+// ✅ Import auth routes only after env is ready
+const { default: authRoutes } = await import("./routes/auth.js");
 app.use("/auth", authRoutes);
 
 app.get("/", (req, res) => {
@@ -18,4 +22,6 @@ app.get("/", (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Backend running on port ${PORT}`);
+});

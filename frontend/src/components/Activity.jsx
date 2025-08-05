@@ -222,3 +222,4 @@ function SearchBox({ value, onChange }) {
     </label>
   );
 }
+

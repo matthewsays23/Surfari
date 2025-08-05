@@ -145,4 +145,8 @@ function SearchBox({ value, onChange }) {
       />
     </label>
   );
+<<<<<<< HEAD:frontend/src/components/Moderation.jsx
 }
+=======
+}
+>>>>>>> b913ee1ddd46995939cb5f362d7f264307a8b239:src/components/Moderation.jsx

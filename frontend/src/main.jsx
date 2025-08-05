@@ -1,10 +1,16 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import SurfariAdminApp from './SurfariAdminApp';
-import './index.css';
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import SurfariAdminApp from "./SurfariAdminApp";
+import AuthSuccess from "./pages/AuthSuccess";
+import AccessDenied from "./pages/AccessDenied";
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <SurfariAdminApp />
-  </React.StrictMode>
-);
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<SurfariAdminApp />} />
+        <Route path="/auth/success" element={<AuthSuccess />} />
+        <Route path="/access-denied" element={<AccessDenied />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
