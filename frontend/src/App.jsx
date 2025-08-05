@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import SurfariAdminApp from "./SurfariAdminApp";
 import AuthSuccess from "./pages/AuthSuccess";
 import AccessDenied from "./pages/AccessDenied";
+import AuthCallback from "./pages/AuthCallback";
 
 export default function App() {
   return (
