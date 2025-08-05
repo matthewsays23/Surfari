@@ -10,19 +10,11 @@ app.use(cors({
   origin: process.env.FRONTEND_URL,
   credentials: true
 }));
-
 app.use(express.json());
 
-// ✅ Import auth routes only after env is ready
+// ✅ Correct way to load routes
 const { default: authRoutes } = await import("./routes/auth.js");
-router.get("/roblox", (req, res) => {
-  const clientId = process.env.ROBLOX_CLIENT_ID;
-  const redirectUri = encodeURIComponent(process.env.ROBLOX_REDIRECT_URI);
-  const robloxAuthUrl = `https://apis.roblox.com/oauth/v1/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=openid%20profile`;
-
-  res.redirect(robloxAuthUrl);
-});
-
+app.use("/auth", authRoutes); // /auth/roblox will now work
 
 app.get("/", (req, res) => {
   res.json({ status: "Surfari backend running" });
