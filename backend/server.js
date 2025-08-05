@@ -8,13 +8,13 @@ const app = express();
 
 app.use(cors({
   origin: process.env.FRONTEND_URL,
-  credentials: true
+  credentials: true,
 }));
 app.use(express.json());
 
-// ✅ Correct way to load routes
+// Mount your /auth routes here
 const { default: authRoutes } = await import("./routes/auth.js");
-app.use("/auth", authRoutes); // /auth/roblox will now work
+app.use("/auth", authRoutes);
 
 app.get("/", (req, res) => {
   res.json({ status: "Surfari backend running" });
