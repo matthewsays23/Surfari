@@ -144,9 +144,5 @@ function SearchBox({ value, onChange }) {
         className="w-40 bg-transparent outline-none placeholder:text-gray-400"
       />
     </label>
-  );
-<<<<<<< HEAD:frontend/src/components/Moderation.jsx
-}
-=======
-}
->>>>>>> b913ee1ddd46995939cb5f362d7f264307a8b239:src/components/Moderation.jsx
+
+  )};
