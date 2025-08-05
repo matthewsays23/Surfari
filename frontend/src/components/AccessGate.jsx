@@ -8,15 +8,14 @@ export default function AccessGate({ children }) {
   useEffect(() => {
     const token = localStorage.getItem("surfari_token");
     if (!token) {
-      navigate("/auth/roblox");
+      window.location.href = "https://surfari-backend.onrender.com/auth/roblox";
       return;
     }
 
-    // Optional: verify token with backend
-    fetch("https://surfari.onrender.com/auth/verify", {
+    fetch("https://surfari-backend.onrender.com/auth/verify", {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(res => {
+      .then((res) => {
         if (!res.ok) throw new Error("Not authorized");
         return res.json();
       })
@@ -30,4 +29,3 @@ export default function AccessGate({ children }) {
   if (loading) return <div className="p-6">Checking access...</div>;
   return <>{children}</>;
 }
-
