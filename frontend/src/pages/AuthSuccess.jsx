@@ -6,15 +6,19 @@ export default function AuthSuccess() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
-    if (token) {
-      localStorage.setItem("surfari_token", token);
-      setTimeout(() => navigate("/"), 1500); // short delay for smoother UX
-    } else {
-      navigate("/access-denied");
-    }
-  }, []);
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("token");
+
+  console.log("AuthSuccess token:", token); // DEBUG LINE
+
+  if (token) {
+    localStorage.setItem("surfari_token", token);
+    setTimeout(() => navigate("/"), 1500);
+  } else {
+    navigate("/access-denied");
+  }
+}, []);
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-100 via-amber-50 to-emerald-100">
