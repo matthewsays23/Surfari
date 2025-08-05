@@ -19,25 +19,28 @@ export default function AccessGate({ children }) {
     Authorization: `Bearer ${token}`,
   },
 })
-      .then(async (res) => {
-        const contentType = res.headers.get("content-type");
+  .then(async res => {
+    const contentType = res.headers.get("content-type");
 
-        if (!res.ok) {
-          const error = contentType?.includes("application/json")
-            ? await res.json()
-            : await res.text();
+    if (!res.ok) {
+      const error = contentType?.includes("application/json")
+        ? await res.json()
+        : await res.text(); // fallback if HTML (e.g., 404)
 
-          throw new Error(error?.error || error || "Unknown error");
-        }
+      throw new Error(error?.error || error || "Unknown error");
+    }
 
-        return res.json();
-      })
-      .then(() => setLoading(false))
-      .catch((err) => {
-        console.error("Verify error:", err.message || err);
-        localStorage.removeItem("surfari_token");
-        navigate("/access-denied");
-      });
+    return contentType?.includes("application/json")
+      ? res.json()
+      : Promise.reject("Unexpected non-JSON response");
+  })
+  .then(() => setLoading(false))
+  .catch(err => {
+    console.error("Verify error:", err.message || err);
+    localStorage.removeItem("surfari_token");
+    navigate("/access-denied");
+  });
+
   }, []);
 
   if (loading) return <div className="p-6">Checking access...</div>;
