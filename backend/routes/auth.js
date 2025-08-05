@@ -1,19 +1,15 @@
 import express from "express";
-import axios from "axios";
-import jwt from "jsonwebtoken";
 
 const router = express.Router();
 
-// ✅ Handle missing SURFARI_ADMIN_ROLES gracefully
-const ADMIN_ROLE_IDS = (process.env.SURFARI_ADMIN_ROLES || "")
-  .split(",")
-  .filter(Boolean)
-  .map(r => parseInt(r));
+router.get("/roblox", (req, res) => {
+  const clientId = process.env.ROBLOX_CLIENT_ID;
+  const redirectUri = process.env.ROBLOX_REDIRECT_URI;
+  const scope = "openid profile";
 
-console.log("Loaded ADMIN_ROLE_IDS:", ADMIN_ROLE_IDS); // debug log
+  const robloxAuthUrl = `https://www.roblox.com/oauth/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=${scope}`;
 
-router.get("/test", (req, res) => {
-  res.json({ message: "Auth route working", roles: ADMIN_ROLE_IDS });
+  res.redirect(robloxAuthUrl);
 });
 
 export default router;
