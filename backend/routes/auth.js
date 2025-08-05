@@ -1,7 +1,11 @@
-import express from "express";
+""import express from "express";
 import axios from "axios";
 
 const router = express.Router();
+
+const sessions = new Map(); // temp in-memory store
+const GROUP_ID = parseInt(process.env.SURFARI_GROUP_ID);
+const ADMIN_ROLE_IDS = process.env.SURFARI_ADMIN_ROLES.split(",").map(Number);
 
 router.get("/roblox", (req, res) => {
   const clientId = process.env.ROBLOX_CLIENT_ID;
@@ -38,12 +42,36 @@ router.get("/callback", async (req, res) => {
     });
 
     const robloxUser = userInfo.data;
-    const token = "mock-token-for-" + robloxUser.sub; // Replace with real JWT logic if needed
+    const token = "token-" + robloxUser.sub + "-" + Date.now();
+    sessions.set(token, robloxUser.sub);
 
     res.redirect(`${process.env.FRONTEND_URL}/auth/success?token=${token}`);
   } catch (err) {
     console.error("OAuth callback error:", err.response?.data || err.message);
     return res.status(500).json({ error: "OAuth callback failed" });
+  }
+});
+
+router.get("/verify", async (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Missing token" });
+
+  const userId = sessions.get(token);
+  if (!userId) return res.status(403).json({ error: "Invalid token" });
+
+  try {
+    const response = await axios.get(`https://groups.roblox.com/v1/users/${userId}/groups`);
+    const groups = response.data.data;
+
+    const surfariGroup = groups.find(g => g.group.id === GROUP_ID);
+    if (!surfariGroup || !ADMIN_ROLE_IDS.includes(surfariGroup.role.rank)) {
+      return res.status(403).json({ error: "User not an admin" });
+    }
+
+    return res.json({ status: "Access granted", userId });
+  } catch (err) {
+    console.error("Verify error:", err.message);
+    return res.status(500).json({ error: "Verification failed" });
   }
 });
 
