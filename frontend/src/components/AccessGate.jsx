@@ -12,18 +12,28 @@ export default function AccessGate({ children }) {
       return;
     }
 
-    fetch("https://surfari-backend.onrender.com/auth/verify", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Not authorized");
-        return res.json();
-      })
-      .then(() => setLoading(false))
-      .catch(() => {
-        localStorage.removeItem("surfari_token");
-        navigate("/access-denied");
-      });
+    fetch("https://surfari.onrender.com/auth/verify", {
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
+})
+  .then(async res => {
+    if (!res.ok) {
+      const contentType = res.headers.get("content-type");
+      const error = contentType?.includes("application/json")
+        ? await res.json()
+        : await res.text(); // fallback for HTML errors
+
+      throw new Error(error?.error || error);
+    }
+    return res.json(); // only try JSON if successful
+  })
+  .then(() => setLoading(false))
+  .catch(err => {
+    console.error("Verify error:", err);
+    localStorage.removeItem("surfari_token");
+    navigate("/access-denied");
+  });
   }, []);
 
   if (loading) return <div className="p-6">Checking access...</div>;
