@@ -42,13 +42,15 @@ router.get("/callback", async (req, res) => {
     });
 
     const robloxUser = userInfo.data;
-    const token = "token-" + robloxUser.sub + "-" + Date.now();
+    const token = `token-${robloxUser.sub}-${Date.now()}`;
     sessions.set(token, robloxUser.sub);
 
-    res.redirect(`${process.env.FRONTEND_URL}/auth/success?token=${token}`);
+    const redirectUrl = `${process.env.FRONTEND_URL}/auth/success?token=${token}`;
+    console.log("Redirecting user to:", redirectUrl);
+    res.redirect(redirectUrl);
   } catch (err) {
     console.error("OAuth callback error:", err.response?.data || err.message);
-    return res.status(500).json({ error: "OAuth callback failed" });
+    res.status(500).json({ error: "OAuth callback failed" });
   }
 });
 

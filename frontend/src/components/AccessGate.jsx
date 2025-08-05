@@ -15,10 +15,10 @@ export default function AccessGate({ children }) {
     }
 
     fetch("https://surfari.onrender.com/auth/verify", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    })
+  headers: {
+    Authorization: `Bearer ${token}`,
+  },
+})
       .then(async (res) => {
         const contentType = res.headers.get("content-type");
 
