@@ -81,5 +81,42 @@ router.get("/verify", async (req, res) => {
   }
 });
 
+// ==== TEAM LIST (public read) ====
+// Add a comma-separated list of admin user IDs to your env:
+// SURFARI_ADMIN_USER_IDS=4872645848,123456,987654
+const ADMIN_USER_IDS = (process.env.SURFARI_ADMIN_USER_IDS || "")
+  .split(",")
+  .map(v => parseInt(v.trim(), 10))
+  .filter(Boolean);
+
+// Returns [{ userId, username, displayName, role: "Admin" }]
+router.get("/team", async (req, res) => {
+  try {
+    if (!ADMIN_USER_IDS.length) return res.json([]);
+
+    // Fetch Roblox user info for each ID (users.roblox.com works without auth)
+    const results = await Promise.all(
+      ADMIN_USER_IDS.map(async (id) => {
+        try {
+          const { data } = await axios.get(`https://users.roblox.com/v1/users/${id}`);
+          return {
+            userId: id,
+            username: data?.name || `User_${id}`,
+            displayName: data?.displayName || data?.name || `User_${id}`,
+            role: "Admin",
+          };
+        } catch {
+          return { userId: id, username: `User_${id}`, displayName: `User_${id}`, role: "Admin" };
+        }
+      })
+    );
+
+    res.json(results);
+  } catch (err) {
+    console.error("Team list error:", err.message);
+    res.status(500).json({ error: "Failed to load team" });
+  }
+});
+
 export default router;
 
