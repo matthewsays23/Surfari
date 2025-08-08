@@ -1,22 +1,28 @@
-// db.js (recap)
 import { MongoClient } from "mongodb";
-const uri = process.env.MONGODB_URI;
-let client, db, ready;
 
-export function getDb() {
-  if (!db) throw new Error("DB not initialized; call initDb() first.");
+const uri = process.env.MONGODB_URI;
+if (!uri) throw new Error("Missing MONGODB_URI");
+
+let client;
+let db;
+
+// Initialize the connection once (called from server.js)
+export async function initDb() {
+  if (db) return db;
+  client = new MongoClient(uri);
+  await client.connect();
+  db = client.db("surfari");
+
+  // Create indexes
+  await db.collection("sessions_live").createIndex({ userId: 1, serverId: 1 }, { unique: true });
+  await db.collection("sessions_live").createIndex({ lastHeartbeat: 1 });
+  await db.collection("sessions_archive").createIndex({ userId: 1, endedAt: -1 });
+
   return db;
 }
-export async function initDb() {
-  if (ready) return ready;
-  ready = (async () => {
-    client = new MongoClient(uri);
-    await client.connect();
-    db = client.db("surfari");
-    await db.collection("sessions_live").createIndex({ userId: 1, serverId: 1 }, { unique: true });
-    await db.collection("sessions_live").createIndex({ lastHeartbeat: 1 });
-    await db.collection("sessions_archive").createIndex({ userId: 1, endedAt: -1 });
-    return db;
-  })();
-  return ready;
+
+// Retrieve the already-connected DB anywhere else
+export function getDb() {
+  if (!db) throw new Error("Database not initialized. Call initDb() first.");
+  return db;
 }
