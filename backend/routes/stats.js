@@ -105,8 +105,6 @@ async function liveMinutesMap(db) {
 }
 
 import axios from "axios";
-import { getDb } from "../db.js";
-
 const QUOTAMIN = 30; // minutes target
 
 // GET /stats/quota/summary
