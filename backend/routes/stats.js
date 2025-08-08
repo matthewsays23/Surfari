@@ -3,14 +3,13 @@ import express from "express";
 import { getDb } from "../db.js";
 
 const router = express.Router();
-const QUOTA_MIN = 30; // weekly quota target
+const QUOTA_MIN = 30;
 
-const db = getDb();
-const live = () => db.collection("sessions_live");
-const arc  = () => db.collection("sessions_archive");
+// always fetch db lazily
+const live = () => getDb().collection("sessions_live");
+const arc  = () => getDb().collection("sessions_archive");
 
 // GET /stats/summary
-// -> { liveCount, todayMinutes, weekMinutes, quotaPct, quotaTarget }
 router.get("/summary", async (_req, res) => {
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -31,7 +30,6 @@ router.get("/summary", async (_req, res) => {
   const todayMinutes = Math.round(todayAgg[0]?.minutes ?? 0);
   const weekMinutes  = Math.round(weekAgg[0]?.minutes ?? 0);
 
-  // % of unique users with >= QUOTA_MIN mins this week
   const perUser = await arc().aggregate([
     { $match: { endedAt: { $gte: weekStart } } },
     { $group: { _id: "$userId", minutes: { $sum: "$minutes" } } },
@@ -49,7 +47,6 @@ router.get("/summary", async (_req, res) => {
 });
 
 // GET /stats/recent
-// -> last 20 archived sessions: [{ userId, minutes, startedAt, endedAt, lastHeartbeat }]
 router.get("/recent", async (_req, res) => {
   const rows = await arc()
     .find({}, { projection: { _id: 0, userId: 1, minutes: 1, startedAt: 1, endedAt: 1, lastHeartbeat: 1 } })
@@ -60,7 +57,6 @@ router.get("/recent", async (_req, res) => {
 });
 
 // GET /stats/leaderboard
-// -> weekly top 10: [{ userId, minutes }]
 router.get("/leaderboard", async (_req, res) => {
   const now = new Date();
   const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);

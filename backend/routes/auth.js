@@ -51,8 +51,7 @@ router.get("/callback", async (req, res) => {
 
     // 👉 get DB *now*, inside the handler
     const db = getDb();
-    const sessions = db.collection("sessions");
-    await sessions.insertOne({ token, userId: robloxUser.sub, createdAt: new Date() });
+await db.collection("sessions").insertOne({ token, userId: robloxUser.sub, createdAt: new Date() });
 
     res.redirect(`${FRONTEND_URL}/auth/success?token=${encodeURIComponent(token)}`);
   } catch (err) {
@@ -69,9 +68,7 @@ router.get("/verify", async (req, res) => {
     if (!token) return res.status(401).json({ error: "Missing token" });
 
     const db = getDb();
-    const sessions = db.collection("sessions");
-
-    const session = await sessions.findOne({ token });
+    const session = await db.collection("sessions").findOne({ token });
     const userId = session?.userId;
     if (!userId) return res.status(403).json({ error: "Invalid token" });
 
