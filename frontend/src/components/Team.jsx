@@ -1,24 +1,35 @@
 import React, { useEffect, useState } from "react";
-import { Users, ShieldCheck, RefreshCcw } from "lucide-react";
+import { Users, ShieldCheck, RefreshCcw, AlertTriangle } from "lucide-react";
+
+const AVATAR = (id) =>
+  `https://www.roblox.com/headshot-thumbnail/image?userId=${id}&width=150&height=150&format=png`;
 
 export default function Team() {
   const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
 
   const load = async () => {
     try {
+      setErr("");
       setLoading(true);
       const res = await fetch("https://surfari.onrender.com/auth/team");
       const data = await res.json();
-      setAdmins(Array.isArray(data) ? data : []);
+      if (!Array.isArray(data)) throw new Error("Invalid team payload");
+      setAdmins(data);
     } catch (e) {
-      console.error("Team load error:", e);
+      console.error("[Team] fetch error:", e);
+      setErr(e.message || "Failed to load team");
+      setAdmins([]);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    console.log("[Team] mounting…");
+    load();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -41,7 +52,18 @@ export default function Team() {
         </button>
       </div>
 
-      {/* Grid */}
+      {/* Error */}
+      {err && (
+        <div className="flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <AlertTriangle className="w-4 h-4 mt-0.5" />
+          <div>
+            <div className="font-medium">Couldn’t load the team</div>
+            <div className="text-red-600/80">{err}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Skeletons */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -50,24 +72,24 @@ export default function Team() {
         </div>
       ) : admins.length === 0 ? (
         <div className="rounded-2xl border border-orange-100 bg-white/80 p-6 text-center text-sm text-gray-600">
-          No admins configured yet. Add IDs to <code className="px-1 py-0.5 bg-orange-50 rounded">SURFARI_ADMIN_USER_IDS</code>.
+          No admins returned. Add IDs in your backend env under
+          <code className="mx-1 px-1 py-0.5 bg-orange-50 rounded">SURFARI_ADMIN_USER_IDS</code>.
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
           {admins.map((a) => (
             <div key={a.userId} className="rounded-2xl border border-orange-100 bg-white/90 p-5 hover:shadow-md transition">
               <div className="flex items-center gap-4">
-                {/* Roblox avatar via thumbnail API */}
                 <img
                   className="h-12 w-12 rounded-xl object-cover border border-orange-100"
-                  src={`https://www.roblox.com/headshot-thumbnail/image?userId=${a.userId}&width=150&height=150&format=png`}
+                  src={AVATAR(a.userId)}
                   alt={a.username}
                 />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-gray-900 truncate">{a.displayName}</span>
-                    <span title="Admin" className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                      <ShieldCheck className="w-3 h-3" /> {a.role}
+                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                      <ShieldCheck className="w-3 h-3" /> {a.role || "Admin"}
                     </span>
                   </div>
                   <div className="text-xs text-gray-500 truncate">@{a.username} · ID {a.userId}</div>
