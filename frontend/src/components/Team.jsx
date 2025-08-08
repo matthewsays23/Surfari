@@ -1,35 +1,62 @@
 import React, { useEffect, useState } from "react";
 import { Users, ShieldCheck, RefreshCcw, AlertTriangle } from "lucide-react";
 
-const AVATAR = (id) =>
-  `https://www.roblox.com/headshot-thumbnail/image?userId=${id}&width=150&height=150&format=png`;
-
 export default function Team() {
   const [admins, setAdmins] = useState([]);
+  const [thumbs, setThumbs] = useState({}); // { userId: imageUrl }
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+
+  const fetchThumbs = async (ids) => {
+    if (!ids.length) return {};
+    // Roblox thumbnails API (batch)
+    const url = `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${ids.join(
+      ","
+    )}&size=150x150&format=Png&isCircular=false`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const map = {};
+    (data.data || []).forEach((d) => {
+      if (d && d.targetId) map[d.targetId] = d.imageUrl || "";
+    });
+    return map;
+  };
 
   const load = async () => {
     try {
       setErr("");
       setLoading(true);
+
+      // 1) Get admins from your backend
       const res = await fetch("https://surfari.onrender.com/auth/team");
-      const data = await res.json();
-      if (!Array.isArray(data)) throw new Error("Invalid team payload");
-      setAdmins(data);
+      const list = await res.json();
+      const clean = Array.isArray(list) ? list : [];
+
+      setAdmins(clean);
+
+      // 2) Batch fetch thumbnails
+      const ids = clean.map((a) => a.userId).filter(Boolean);
+      const map = await fetchThumbs(ids);
+      setThumbs(map);
     } catch (e) {
-      console.error("[Team] fetch error:", e);
+      console.error("[Team] load error:", e);
       setErr(e.message || "Failed to load team");
       setAdmins([]);
+      setThumbs({});
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    console.log("[Team] mounting…");
     load();
   }, []);
+
+  const FallbackAvatar = ({ name = "?" }) => (
+    <div className="h-12 w-12 rounded-xl grid place-items-center border border-orange-100 bg-gradient-to-br from-orange-100 to-emerald-100 text-orange-900 font-semibold">
+      {String(name).slice(0, 1).toUpperCase()}
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -63,7 +90,7 @@ export default function Team() {
         </div>
       )}
 
-      {/* Skeletons */}
+      {/* Content */}
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -72,31 +99,39 @@ export default function Team() {
         </div>
       ) : admins.length === 0 ? (
         <div className="rounded-2xl border border-orange-100 bg-white/80 p-6 text-center text-sm text-gray-600">
-          No admins returned. Add IDs in your backend env under
-          <code className="mx-1 px-1 py-0.5 bg-orange-50 rounded">SURFARI_ADMIN_USER_IDS</code>.
+          No admins returned.
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-          {admins.map((a) => (
-            <div key={a.userId} className="rounded-2xl border border-orange-100 bg-white/90 p-5 hover:shadow-md transition">
-              <div className="flex items-center gap-4">
-                <img
-                  className="h-12 w-12 rounded-xl object-cover border border-orange-100"
-                  src={AVATAR(a.userId)}
-                  alt={a.username}
-                />
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-900 truncate">{a.displayName}</span>
-                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                      <ShieldCheck className="w-3 h-3" /> {a.role || "Admin"}
-                    </span>
+          {admins.map((a) => {
+            const img = thumbs[a.userId];
+            return (
+              <div key={a.userId} className="rounded-2xl border border-orange-100 bg-white/90 p-5 hover:shadow-md transition">
+                <div className="flex items-center gap-4">
+                  {img ? (
+                    <img
+                      className="h-12 w-12 rounded-xl object-cover border border-orange-100"
+                      src={img}
+                      alt={a.username}
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <FallbackAvatar name={a.displayName || a.username} />
+                  )}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-gray-900 truncate">{a.displayName}</span>
+                      <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                        <ShieldCheck className="w-3 h-3" /> {a.role || "Admin"}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-500 truncate">@{a.username} · ID {a.userId}</div>
                   </div>
-                  <div className="text-xs text-gray-500 truncate">@{a.username} · ID {a.userId}</div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
