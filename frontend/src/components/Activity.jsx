@@ -9,6 +9,9 @@ const REFRESH_MS = 30_000;
 const QUOTA_MIN = 30;
 
 export default function Activity() {
+  // ✅ this must be inside the component
+  const [showDirectory, setShowDirectory] = useState(false);
+
   const [summary, setSummary] = useState(null);
   const [recent, setRecent] = useState([]);
   const [leaders, setLeaders] = useState([]);
@@ -34,7 +37,6 @@ export default function Activity() {
     return Array.from(ids).filter(Boolean);
   }, [leaders, recent, qRows]);
 
-  // helpers
   const safeJson = async (res) => {
     const ct = res.headers.get("content-type") || "";
     if (!res.ok) {
@@ -43,19 +45,22 @@ export default function Activity() {
     }
     return ct.includes("application/json") ? res.json() : {};
   };
+
   const fetchWithTimeout = (url, opts = {}, ms = 10_000) => {
     const ctrl = new AbortController();
     const id = setTimeout(() => ctrl.abort(), ms);
     return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(id));
   };
+
   const nextWeeklyReset = () => {
     const now = new Date();
     const next = new Date(now);
-    const daysAhead = (8 - now.getDay()) % 7 || 7; // next Monday 00:00 (adjust as you want)
+    const daysAhead = (8 - now.getDay()) % 7 || 7; // next Monday 00:00
     next.setDate(now.getDate() + daysAhead);
     next.setHours(0, 0, 0, 0);
     return next;
   };
+
   const formatCountdown = (toDate) => {
     const diff = Math.max(0, toDate.getTime() - Date.now());
     const s = Math.floor(diff / 1000);
@@ -65,7 +70,6 @@ export default function Activity() {
     return `${d}d ${h}h ${m}m`;
   };
 
-  // loads
   const loadSummaryCore = async () => {
     const [s, r, l] = await Promise.all([
       fetchWithTimeout(`${API}/stats/summary`).then(safeJson),
@@ -155,14 +159,16 @@ export default function Activity() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Quota target as a pill button */}
+          {/* Quota pill toggles the full directory */}
           <button
-            className="inline-flex items-center gap-2 text-sm px-3 py-2 rounded-full border border-orange-200 bg-white hover:bg-orange-50 transition"
-            title="Weekly quota target"
+            onClick={() => setShowDirectory(v => !v)}
+            className={`inline-flex items-center gap-2 text-sm px-3 py-2 rounded-full border border-orange-200 bg-white hover:bg-orange-50 transition ${showDirectory ? "ring-1 ring-orange-300" : ""}`}
+            title="Weekly quota target & member progress"
           >
             <Target className="w-4 h-4 text-orange-600" />
             <span className="font-medium text-gray-800">Quota: {quotaTarget}m</span>
           </button>
+
           <button
             onClick={() => loadAll(qPage, qLimit, qSearch)}
             className="inline-flex items-center gap-2 text-sm px-3 py-2 rounded-full border border-orange-200 bg-white hover:bg-orange-50 transition"
@@ -171,6 +177,23 @@ export default function Activity() {
           </button>
         </div>
       </div>
+
+      {/* Collapsible quota directory */}
+      {showDirectory && (
+        <section className="rounded-2xl border border-orange-100 bg-white/95 p-5 animate-[fadeIn_.15s_ease-out]">
+          <QuotaDirectory
+            rows={qRows}
+            page={qPage}
+            pages={qPages}
+            quotaTarget={quotaTarget}
+            names={names}
+            thumbs={thumbs}
+            search={qSearch}
+            onSearch={(val) => { setQSearch(val); loadAll(1, qLimit, val); }}
+            onPage={(p) => loadAll(p, qLimit, qSearch)}
+          />
+        </section>
+      )}
 
       {err && (
         <div className="flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -187,7 +210,6 @@ export default function Activity() {
         <Kpi icon={Users} label="Users Online" value={summary?.liveCount ?? 0} />
         <Kpi icon={Clock} label="Minutes Today" value={summary?.todayMinutes ?? 0} />
         <Kpi icon={Trophy} label="Minutes This Week" value={summary?.weekMinutes ?? 0} />
-        {/* Circular quota gauge */}
         <QuotaGauge pct={summary?.quotaPct ?? 0} label={`Quota Met (${quotaTarget}m)`} />
       </div>
 
@@ -198,19 +220,6 @@ export default function Activity() {
         thumbs={thumbs}
         quotaTarget={quotaTarget}
         nextResetText={formatCountdown(resetAt)}
-      />
-
-      {/* Full Quota Directory (search + paging) */}
-      <QuotaDirectory
-        rows={qRows}
-        page={qPage}
-        pages={qPages}
-        quotaTarget={quotaTarget}
-        names={names}
-        thumbs={thumbs}
-        search={qSearch}
-        onSearch={(val) => { setQSearch(val); loadAll(1, qLimit, val); }}
-        onPage={(p) => loadAll(p, qLimit, qSearch)}
       />
 
       {/* Time Logs + Leaderboard */}
@@ -240,9 +249,7 @@ function Kpi({ icon: Icon, label, value }) {
 
 function QuotaGauge({ pct = 0, label }) {
   const clamped = Math.max(0, Math.min(100, Math.round(pct)));
-  const ringStyle = {
-    background: `conic-gradient(#10b981 ${clamped * 3.6}deg, #fee3d6 0deg)`,
-  };
+  const ringStyle = { background: `conic-gradient(#10b981 ${clamped * 3.6}deg, #fee3d6 0deg)` };
   return (
     <div className="rounded-2xl border border-orange-100 bg-white/95 p-5 flex items-center gap-4">
       <div className="relative h-16 w-16 shrink-0">
@@ -319,7 +326,7 @@ function QuotaPanel({ leaders, names, thumbs, quotaTarget, nextResetText }) {
 
 function QuotaDirectory({ rows, page, pages, quotaTarget, names, thumbs, search, onSearch, onPage }) {
   return (
-    <section className="rounded-2xl border border-orange-100 bg-white/95 p-5">
+    <div>
       <div className="flex items-center justify-between gap-3 mb-4">
         <h3 className="text-lg font-semibold text-gray-900">All Members — Weekly Progress</h3>
         <div className="relative w-full max-w-xs">
@@ -383,7 +390,6 @@ function QuotaDirectory({ rows, page, pages, quotaTarget, names, thumbs, search,
         </ul>
       )}
 
-      {/* Pager */}
       <div className="mt-4 flex items-center justify-end gap-2">
         <button
           disabled={page <= 1}
@@ -403,7 +409,7 @@ function QuotaDirectory({ rows, page, pages, quotaTarget, names, thumbs, search,
           Next <ChevronRight className="w-4 h-4" />
         </button>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -411,9 +417,7 @@ function TimeLogs({ recent, names, thumbs }) {
   return (
     <section className="rounded-2xl border border-orange-100 bg-white/95 p-5">
       <div className="flex items-center gap-2 mb-3">
-        <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600">
-          <Clock className="w-4 h-4" />
-        </div>
+        <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600"><Clock className="w-4 h-4" /></div>
         <h3 className="text-lg font-semibold text-gray-900">Time Logs (Recent)</h3>
       </div>
       {recent.length === 0 ? (
@@ -432,14 +436,10 @@ function TimeLogs({ recent, names, thumbs }) {
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="text-sm text-gray-800 truncate">
-                    <span className="font-medium text-gray-900">
-                      {n.displayName || n.username || `User ${s.userId}`}
-                    </span>
+                    <span className="font-medium text-gray-900">{n.displayName || n.username || `User ${s.userId}`}</span>
                     <span className="text-gray-500"> · {Math.round(s.minutes)}m</span>
                   </div>
-                  <div className="text-xs text-gray-500">
-                    {timeAgo(s.endedAt || s.lastHeartbeat || s.startedAt)}
-                  </div>
+                  <div className="text-xs text-gray-500">{timeAgo(s.endedAt || s.lastHeartbeat || s.startedAt)}</div>
                 </div>
               </li>
             );
@@ -497,6 +497,7 @@ function RankBadge({ n }) {
     : "bg-slate-100 text-slate-700";
   return <span className={`w-7 h-7 grid place-items-center rounded-lg text-xs font-semibold ${styles}`}>{n}</span>;
 }
+
 function AvatarFallback({ name = "?" }) {
   return (
     <div className="h-9 w-9 rounded-lg grid place-items-center border border-orange-100 bg-gradient-to-br from-orange-100 to-emerald-100 text-orange-900 text-xs font-semibold">
@@ -504,6 +505,7 @@ function AvatarFallback({ name = "?" }) {
     </div>
   );
 }
+
 function Empty({ msg }) {
   return (
     <div className="rounded-xl border border-orange-100 bg-white/70 p-5 text-center text-sm text-gray-600">
@@ -511,6 +513,7 @@ function Empty({ msg }) {
     </div>
   );
 }
+
 function timeAgo(dateLike) {
   try {
     const d = new Date(dateLike);
