@@ -1,11 +1,11 @@
 import express from "express";
-import { db } from "../db.js";
+import { initDb } from "../db.js";
 
 const router = express.Router();
 const QUOTA_MIN = 30; // weekly quota target
 
-const live = () => db.collection("sessions_live");
-const arc  = () => db.collection("sessions_archive");
+const live = () => initDb.collection("sessions_live");
+const arc  = () => initDb.collection("sessions_archive");
 
 // Summary: live count, minutes today, minutes this week, quota %
 router.get("/summary", async (_req, res) => {
