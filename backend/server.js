@@ -10,6 +10,8 @@ dotenv.config();
 
 import express from "express";
 import cors from "cors";
+import robloxRoutes from "./routes/roblox.js";
+
 
 const app = express();
 
@@ -22,6 +24,8 @@ app.use(cors({
 // Mount your /auth routes here
 const { default: authRoutes } = await import("./routes/auth.js");
 app.use("/auth", authRoutes);
+
+app.use("/roblox", robloxRoutes);
 
 app.get("/", (req, res) => {
   res.json({ status: "Surfari backend running" });

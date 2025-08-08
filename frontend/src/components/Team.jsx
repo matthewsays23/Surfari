@@ -7,20 +7,16 @@ export default function Team() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  const fetchThumbs = async (ids) => {
-    if (!ids.length) return {};
-    // Roblox thumbnails API (batch)
-    const url = `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${ids.join(
-      ","
-    )}&size=150x150&format=Png&isCircular=false`;
-    const res = await fetch(url);
-    const data = await res.json();
-    const map = {};
-    (data.data || []).forEach((d) => {
-      if (d && d.targetId) map[d.targetId] = d.imageUrl || "";
-    });
-    return map;
-  };
+  
+const fetchThumbs = async (ids) => {
+  if (!ids.length) return {};
+  const res = await fetch(`https://surfari.onrender.com/roblox/thumbs?ids=${ids.join(",")}`);
+  const data = await res.json();
+  const map = {};
+  (data.data || []).forEach(d => { if (d?.targetId) map[d.targetId] = d.imageUrl || ""; });
+  return map;
+};
+
 
   const load = async () => {
     try {
