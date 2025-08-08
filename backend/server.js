@@ -1,37 +1,40 @@
-// Replace the in-memory Map with a MongoDB collection
-import { MongoClient } from "mongodb";
-const client = new MongoClient(process.env.MONGODB_URI);
-await client.connect();
-const db = client.db("surfari");
-const sessions = db.collection("sessions");
-
 import dotenv from "dotenv";
 dotenv.config();
 
 import express from "express";
 import cors from "cors";
+import { db } from "./db.js";
+import authRoutes from "./routes/auth.js";
 import robloxRoutes from "./routes/roblox.js";
-
 
 const app = express();
 
-app.use(cors({
-  origin: ["https://surfari.io"],
-  credentials: true,
-}));
+// CORS – allow prod + local, allow Authorization header
+const ALLOW_ORIGINS = [
+  "https://surfari.io",
+  "http://localhost:5173",
+];
 
+const corsOptions = {
+  origin(origin, cb) {
+    if (!origin) return cb(null, true); // server-to-server, curl
+    cb(null, ALLOW_ORIGINS.includes(origin));
+  },
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: false, // using Bearer tokens, not cookies
+};
 
-// Mount your /auth routes here
-const { default: authRoutes } = await import("./routes/auth.js");
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
+app.use(express.json());
+
+// mount routes
 app.use("/auth", authRoutes);
-
 app.use("/roblox", robloxRoutes);
 
-app.get("/", (req, res) => {
-  res.json({ status: "Surfari backend running" });
-});
+// sanity
+app.get("/", (_req, res) => res.json({ status: "Surfari backend running" }));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Backend running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Backend running on :${PORT}`));

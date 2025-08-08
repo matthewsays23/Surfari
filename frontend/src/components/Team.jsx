@@ -7,30 +7,32 @@ export default function Team() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-
-const fetchThumbs = async (ids) => {
-  if (!ids.length) return {};
-  const res = await fetch(`https://surfari.onrender.com/roblox/thumbs?ids=${ids.join(",")}`);
-  const data = await res.json();
-  const map = {};
-  (data.data || []).forEach(d => { if (d?.targetId) map[d.targetId] = d.imageUrl || ""; });
-  return map;
-};
-
+  const fetchThumbs = async (ids) => {
+    if (!ids.length) return {};
+    const res = await fetch(`https://surfari.onrender.com/roblox/thumbs?ids=${ids.join(",")}`);
+    // guard against non-JSON responses
+    const ct = res.headers.get("content-type") || "";
+    const data = ct.includes("application/json") ? await res.json() : { data: [] };
+    const map = {};
+    (data.data || []).forEach((d) => {
+      if (d?.targetId) map[d.targetId] = d.imageUrl || "";
+    });
+    return map;
+  };
 
   const load = async () => {
     try {
       setErr("");
       setLoading(true);
 
-      // 1) Get admins from your backend
       const res = await fetch("https://surfari.onrender.com/auth/team");
       const list = await res.json();
       const clean = Array.isArray(list) ? list : [];
 
+      // sort by rank desc so higher ranks show first
+      clean.sort((a, b) => (b.roleRank ?? 0) - (a.roleRank ?? 0));
       setAdmins(clean);
 
-      // 2) Batch fetch thumbnails
       const ids = clean.map((a) => a.userId).filter(Boolean);
       const map = await fetchThumbs(ids);
       setThumbs(map);
@@ -64,7 +66,9 @@ const fetchThumbs = async (ids) => {
           </div>
           <div>
             <h2 className="text-xl font-semibold text-gray-900">Team</h2>
-            <p className="text-sm text-gray-500">Admins with access to Surfari</p>
+            <p className="text-sm text-gray-500">
+              Admins with access to Surfari • <span className="font-medium text-gray-800">{admins.length}</span>
+            </p>
           </div>
         </div>
         <button
@@ -101,6 +105,8 @@ const fetchThumbs = async (ids) => {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
           {admins.map((a) => {
             const img = thumbs[a.userId];
+            const roleName = a.roleName || a.role || "Admin";
+            const rank = typeof a.roleRank === "number" ? a.roleRank : null;
             return (
               <div key={a.userId} className="rounded-2xl border border-orange-100 bg-white/90 p-5 hover:shadow-md transition">
                 <div className="flex items-center gap-4">
@@ -119,7 +125,8 @@ const fetchThumbs = async (ids) => {
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-gray-900 truncate">{a.displayName}</span>
                       <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                        <ShieldCheck className="w-3 h-3" /> {a.roleName || a.role || "Admin"}
+                        <ShieldCheck className="w-3 h-3" /> {roleName}
+                        {rank !== null && <span className="ml-1 text-[10px] text-gray-600">({rank})</span>}
                       </span>
                     </div>
                     <div className="text-xs text-gray-500 truncate">@{a.username} · ID {a.userId}</div>

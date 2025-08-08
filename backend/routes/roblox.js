@@ -1,4 +1,3 @@
-// routes/roblox.js
 import express from "express";
 import axios from "axios";
 
@@ -14,8 +13,7 @@ router.get("/thumbs", async (req, res) => {
 
     if (!ids.length) return res.json({ data: [] });
 
-    const url = "https://thumbnails.roblox.com/v1/users/avatar-headshot";
-    const { data } = await axios.get(url, {
+    const { data } = await axios.get("https://thumbnails.roblox.com/v1/users/avatar-headshot", {
       params: {
         userIds: ids.join(","),
         size: "150x150",
@@ -25,7 +23,7 @@ router.get("/thumbs", async (req, res) => {
       // timeout: 5000,
     });
 
-    res.json(data); // your server already sets CORS to allow surfari.io
+    res.json(data);
   } catch (e) {
     console.error("thumbs proxy error:", e.response?.data || e.message);
     res.status(500).json({ error: "Thumbs fetch failed" });

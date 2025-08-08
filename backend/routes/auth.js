@@ -1,152 +1,165 @@
 import express from "express";
 import axios from "axios";
-import { MongoClient } from "mongodb";
+import { db } from "../db.js";
 
 const router = express.Router();
-const client = new MongoClient(process.env.MONGODB_URI);
-await client.connect();
-const db = client.db("surfari");
+
 const sessions = db.collection("sessions");
 
-const GROUP_ID = parseInt(process.env.SURFARI_GROUP_ID);
-const ADMIN_ROLE_IDS = process.env.SURFARI_ADMIN_ROLES.split(",").map(Number);
+const GROUP_ID = parseInt(process.env.SURFARI_GROUP_ID, 10);
+if (!GROUP_ID) console.warn("WARN: SURFARI_GROUP_ID missing/invalid");
+
+const ADMIN_ROLE_IDS = (process.env.SURFARI_ADMIN_ROLES || "")
+  .split(",")
+  .map(v => parseInt(v.trim(), 10))
+  .filter(Boolean);
+
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+const CLIENT_ID = process.env.ROBLOX_CLIENT_ID;
+const CLIENT_SECRET = process.env.ROBLOX_CLIENT_SECRET;
+const REDIRECT_URI = process.env.ROBLOX_REDIRECT_URI;
+
+if (!CLIENT_ID || !CLIENT_SECRET || !REDIRECT_URI) {
+  console.warn("WARN: Roblox OAuth envs missing (ROBLOX_CLIENT_ID/SECRET/REDIRECT_URI)");
+}
 
 // --- ROBLOX LOGIN REDIRECT ---
 router.get("/roblox", (req, res) => {
-  const clientId = process.env.ROBLOX_CLIENT_ID;
-  const redirectUri = encodeURIComponent(process.env.ROBLOX_REDIRECT_URI);
   const scope = "openid profile";
+  const authUrl =
+    `https://apis.roblox.com/oauth/v1/authorize` +
+    `?client_id=${CLIENT_ID}` +
+    `&response_type=code` +
+    `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+    `&scope=${encodeURIComponent(scope)}`;
 
-  const robloxAuthUrl = `https://apis.roblox.com/oauth/v1/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=${scope}`;
-  res.redirect(robloxAuthUrl);
+  res.redirect(authUrl);
 });
 
+// --- OAUTH CALLBACK ---
 router.get("/callback", async (req, res) => {
   const code = req.query.code;
   if (!code) return res.status(400).json({ error: "Missing code" });
 
   try {
-    const response = await axios.post(
+    const tokenResp = await axios.post(
       "https://apis.roblox.com/oauth/v1/token",
       new URLSearchParams({
         grant_type: "authorization_code",
         code,
-        client_id: process.env.ROBLOX_CLIENT_ID,
-        client_secret: process.env.ROBLOX_CLIENT_SECRET,
-        redirect_uri: process.env.ROBLOX_REDIRECT_URI,
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+        redirect_uri: REDIRECT_URI,
       }),
       { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
     );
 
-    const { access_token } = response.data;
+    const { access_token } = tokenResp.data;
+
     const userInfo = await axios.get("https://apis.roblox.com/oauth/v1/userinfo", {
       headers: { Authorization: `Bearer ${access_token}` },
     });
 
-    const robloxUser = userInfo.data;
-    const token = "token-" + robloxUser.sub + "-" + Date.now();
+    const robloxUser = userInfo.data; // { sub: <userId>, name, ... }
+    const token = `token-${robloxUser.sub}-${Date.now()}`;
 
-    // Save session in MongoDB
-    await sessions.insertOne({ token, userId: robloxUser.sub, createdAt: new Date() });
+    await sessions.insertOne({
+      token,
+      userId: robloxUser.sub,
+      createdAt: new Date(),
+    });
 
-    res.redirect(`${process.env.FRONTEND_URL}/auth/success?token=${token}`);
+    // send token to frontend
+    res.redirect(`${FRONTEND_URL}/auth/success?token=${encodeURIComponent(token)}`);
   } catch (err) {
     console.error("OAuth callback error:", err.response?.data || err.message);
     return res.status(500).json({ error: "OAuth callback failed" });
   }
 });
 
-
+// --- VERIFY (used by AccessGate) ---
 router.get("/verify", async (req, res) => {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ error: "Missing token" });
-
-  const session = await sessions.findOne({ token });
-  const userId = session?.userId;
-  if (!userId) return res.status(403).json({ error: "Invalid token" });
-
   try {
-    const response = await axios.get(`https://groups.roblox.com/v2/users/${userId}/groups/roles`);
-    const groups = response.data.data;
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
+    if (!token) return res.status(401).json({ error: "Missing token" });
 
-    const surfariGroup = groups.find(g => g.group.id === GROUP_ID);
-    if (!surfariGroup || !ADMIN_ROLE_IDS.includes(surfariGroup.role.rank)) {
+    const session = await sessions.findOne({ token });
+    const userId = session?.userId;
+    if (!userId) return res.status(403).json({ error: "Invalid token" });
+
+    // Make sure user is an admin in our group
+    const groupResp = await axios.get(`https://groups.roblox.com/v2/users/${userId}/groups/roles`);
+    const entries = groupResp.data?.data || [];
+    const surfariGroup = entries.find(g => g.group?.id === GROUP_ID);
+    const rank = surfariGroup?.role?.rank || 0;
+
+    if (!surfariGroup || (ADMIN_ROLE_IDS.length && !ADMIN_ROLE_IDS.includes(rank))) {
       return res.status(403).json({ error: "User not an admin" });
     }
 
-    return res.json({ status: "Access granted", userId });
+    // Optionally include profile
+    const profile = await axios.get(`https://users.roblox.com/v1/users/${userId}`);
+
+    return res.json({
+      status: "Access granted",
+      userId,
+      username: profile.data?.name,
+      displayName: profile.data?.displayName,
+      roleRank: rank,
+      roleName: surfariGroup?.role?.name || "Member",
+    });
   } catch (err) {
-    console.error("Verify error:", err.message);
+    console.error("Verify error:", err.response?.data || err.message);
     return res.status(500).json({ error: "Verification failed" });
   }
 });
 
+// helpers
 async function getGroupRole(userId) {
   try {
     const { data } = await axios.get(`https://groups.roblox.com/v2/users/${userId}/groups/roles`);
     const match = (data.data || []).find(g => g.group?.id === GROUP_ID);
     if (!match) return { roleName: "Not in group", roleRank: 0 };
     return { roleName: match.role?.name ?? "Member", roleRank: match.role?.rank ?? 0 };
-  } catch {
+  } catch (err) {
+    console.error(`getGroupRole error for ${userId}:`, err.response?.data || err.message);
     return { roleName: "Unknown", roleRank: -1 };
   }
 }
 
-
-router.get("/team", async (req, res) => {
-  const ids = process.env.SURFARI_ADMIN_USER_IDS.split(",").map(id => parseInt(id.trim(), 10));
-  const rows = await Promise.all(
-    ids.map(async id => {
-      const { data } = await axios.get("https://users.roblox.com/v1/users/${id}");
-      const roleData = await getGroupRole(id);
-      return {
-        userId: id,
-        username: data.name,
-        displayName: data.displayName,
-        roleName: roleData.roleName,
-        roleRank: roleData.roleRank
-      };
-    })
-  );
-  res.json(rows);
-});
-
-// ==== TEAM LIST (public read) ====
-// Add a comma-separated list of admin user IDs to your env:
-// SURFARI_ADMIN_USER_IDS=4872645848,123456,987654
-const ADMIN_USER_IDS = (process.env.SURFARI_ADMIN_USER_IDS || "")
-  .split(",")
-  .map(v => parseInt(v.trim(), 10))
-  .filter(Boolean);
-
-// Returns [{ userId, username, displayName, role: "Admin" }]
+// --- TEAM (admin list with group roles) ---
 router.get("/team", async (req, res) => {
   try {
+    const ADMIN_USER_IDS = (process.env.SURFARI_ADMIN_USER_IDS || "")
+      .split(",")
+      .map(v => parseInt(v.trim(), 10))
+      .filter(Boolean);
+
     if (!ADMIN_USER_IDS.length) return res.json([]);
 
-    // Fetch Roblox user info for each ID (users.roblox.com works without auth)
-    const results = await Promise.all(
+    const rows = await Promise.all(
       ADMIN_USER_IDS.map(async (id) => {
-        try {
-          const { data } = await axios.get(`https://users.roblox.com/v1/users/${id}`);
-          return {
-            userId: id,
-            username: data?.name || `User_${id}`,
-            displayName: data?.displayName || data?.name || `User_${id}`,
-            role: "Admin",
-          };
-        } catch {
-          return { userId: id, username: `User_${id}`, displayName: `User_${id}`, role: "Admin" };
-        }
+        const { data } = await axios.get(`https://users.roblox.com/v1/users/${id}`); // ✅ backticks!
+        const roleData = await getGroupRole(id);
+        return {
+          userId: id,
+          username: data?.name || `User_${id}`,
+          displayName: data?.displayName || data?.name || `User_${id}`,
+          roleName: roleData.roleName,
+          roleRank: roleData.roleRank,
+        };
       })
     );
 
-    res.json(results);
+    // Optional: sort by rank desc
+    rows.sort((a, b) => (b.roleRank ?? 0) - (a.roleRank ?? 0));
+
+    res.json(rows);
   } catch (err) {
-    console.error("Team list error:", err.message);
+    console.error("Team list error:", err.response?.data || err.message);
     res.status(500).json({ error: "Failed to load team" });
   }
 });
 
 export default router;
-
