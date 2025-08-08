@@ -221,4 +221,51 @@ router.get("/quota/user/:userId", async (req, res) => {
   });
 });
 
+// GET /stats/progress?limit=25&page=1&search=yo
+// Returns paginated weekly minutes per user: { rows: [{ userId, minutes }], total, page, pages, limit }
+router.get("/progress", async (req, res) => {
+  const now = new Date();
+  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit ?? "25", 10)));
+  const page  = Math.max(1, parseInt(req.query.page ?? "1", 10));
+  const search = (req.query.search || "").trim().toLowerCase();
+
+  // Aggregate total minutes per user for this week
+  const base = [
+    { $match: { endedAt: { $gte: weekStart } } },
+    { $group: { _id: "$userId", minutes: { $sum: "$minutes" } } },
+  ];
+
+  // We’ll page the aggregated results
+  const [{ count: total } = { count: 0 }] = await arc().aggregate([
+    ...base,
+    { $count: "count" },
+  ]).toArray();
+
+  // Sort by minutes desc, then paginate
+  const rows = await arc().aggregate([
+    ...base,
+    { $sort: { minutes: -1 } },
+    { $skip: (page - 1) * limit },
+    { $limit: limit },
+    { $project: { _id: 0, userId: "$._id", minutes: 1 } }
+  ]).toArray();
+
+  // Optional simple “search” by userId prefix (client can do name-based search after it fetches names)
+  const filtered = search
+    ? rows.filter(r => String(r.userId).startsWith(search))
+    : rows;
+
+  res.json({
+    rows: filtered.map(r => ({ userId: r.userId ?? r._id, minutes: Math.round(r.minutes || 0) })),
+    total,
+    page,
+    pages: Math.max(1, Math.ceil(total / limit)),
+    limit,
+    quotaTarget: QUOTA_MIN,
+  });
+});
+
+
 export default router;
