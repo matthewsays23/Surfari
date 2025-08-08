@@ -3,7 +3,7 @@ dotenv.config();
 
 import express from "express";
 import cors from "cors";
-import "./db.js"; // initialize connection once
+import { initDb } from "./db.js";
 
 import authRoutes from "./routes/auth.js";
 import robloxRoutes from "./routes/roblox.js";
@@ -14,21 +14,21 @@ const app = express();
 
 const ALLOW_ORIGINS = ["https://surfari.io", "http://localhost:5173"];
 const corsOptions = {
-  origin(origin, cb) {
-    if (!origin) return cb(null, true);
-    cb(null, ALLOW_ORIGINS.includes(origin));
-  },
+  origin(origin, cb) { if (!origin) return cb(null, true); cb(null, ALLOW_ORIGINS.includes(origin)); },
   methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: false
+  allowedHeaders: ["Content-Type", "Authorization", "X-Game-Key"],
+  credentials: false,
 };
 app.use(cors(corsOptions));
 app.use(express.json());
 
-app.use("/auth", authRoutes);    // ✅ all relative paths
+// ensure DB is ready before we mount routes that use it
+await initDb();
+
+app.use("/auth", authRoutes);
 app.use("/roblox", robloxRoutes);
-app.use("/ingest", ingestRoutes);
-app.use("/stats", statsRoutes);
+app.use("/ingest", ingestRoutes);   // <- POST endpoints from the Roblox server script
+app.use("/stats", statsRoutes);     // <- dashboard queries
 
 app.get("/", (_req, res) => res.json({ status: "Surfari backend running" }));
 
