@@ -1,9 +1,9 @@
 import express from "express";
 import axios from "axios";
-import { initDb } from "../db.js";
+import { getDb } from "../db.js";
 
 const router = express.Router();
-const sessions = initDb.collection("sessions");
+const sessions = getDb().collection("sessions");
 
 const GROUP_ID = parseInt(process.env.SURFARI_GROUP_ID, 10);
 const ADMIN_ROLE_IDS = (process.env.SURFARI_ADMIN_ROLES || "")
