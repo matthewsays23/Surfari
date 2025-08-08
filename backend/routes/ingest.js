@@ -1,61 +1,90 @@
+// backend/routes/ingest.js
 import express from "express";
 import { getDb } from "../db.js";
 
 const router = express.Router();
-const db = getDb();
-const live = () => db.collection("sessions_live");
-const arc  = () => db.collection("sessions_archive");
 
-const GAME_INGEST_KEY = process.env.GAME_INGEST_KEY;
-const ok = (req, res) => {
-  const k = req.header("X-Game-Key");
-  if (!k || k !== GAME_INGEST_KEY) { res.status(401).json({ error: "Unauthorized" }); return false; }
-  return true;
-};
+// simple shared secret so only your game can post
+const GAME_KEY = process.env.GAME_INGEST_KEY;
+if (!GAME_KEY) console.warn("[ingest] WARNING: missing GAME_INGEST_KEY env");
 
-router.get("/health", (_req, res) => res.json({ ok: true }));
+// Helpers — always get db lazily
+const live  = () => getDb().collection("sessions_live");
+const arch  = () => getDb().collection("sessions_archive");
 
+// Validate header + payload
+function validate(req, fields = []) {
+  const key = req.get("X-Game-Key");
+  if (!key || key !== GAME_KEY) return { status: 401, msg: "Unauthorized" };
+
+  for (const f of fields) {
+    if (req.body?.[f] === undefined || req.body?.[f] === null) {
+      return { status: 400, msg: `Missing ${f}` };
+    }
+  }
+  return null;
+}
+
+// POST /ingest/session/start
 router.post("/session/start", async (req, res) => {
-  if (!ok(req, res)) return;
-  const { userId, serverId, placeId } = req.body || {};
-  if (!userId || !serverId) return res.status(400).json({ error: "Missing userId/serverId" });
+  const err = validate(req, ["userId", "serverId", "placeId"]);
+  if (err) return res.status(err.status).json({ error: err.msg });
+
+  const { userId, serverId, placeId } = req.body;
   const now = new Date();
+
   await live().updateOne(
     { userId, serverId },
-    { $set: { userId, serverId, placeId: placeId ?? null, startedAt: now, lastHeartbeat: now, minutes: 0 } },
+    { $set: { userId, serverId, placeId, startedAt: now, lastHeartbeat: now } },
     { upsert: true }
+  );
+
+  res.json({ ok: true });
+});
+
+// POST /ingest/session/heartbeat
+router.post("/session/heartbeat", async (req, res) => {
+  const err = validate(req, ["userId", "serverId"]);
+  if (err) return res.status(err.status).json({ error: err.msg });
+
+  const { userId, serverId } = req.body;
+  await live().updateOne(
+    { userId, serverId },
+    { $set: { lastHeartbeat: new Date() } }
   );
   res.json({ ok: true });
 });
 
-router.post("/session/heartbeat", async (req, res) => {
-  if (!ok(req, res)) return;
-  const { userId, serverId } = req.body || {};
-  if (!userId || !serverId) return res.status(400).json({ error: "Missing userId/serverId" });
+// POST /ingest/session/end
+router.post("/session/end", async (req, res) => {
+  const err = validate(req, ["userId", "serverId"]);
+  if (err) return res.status(err.status).json({ error: err.msg });
+
+  const { userId, serverId } = req.body;
 
   const doc = await live().findOne({ userId, serverId });
-  if (!doc) return res.status(404).json({ error: "session not found" });
+  if (!doc) {
+    // nothing live — just succeed so your game isn’t noisy
+    return res.json({ ok: true, archived: false });
+  }
 
   const now = new Date();
-  const deltaMin = Math.min(3, Math.max(0, (now - new Date(doc.lastHeartbeat)) / 60000));
-  await live().updateOne({ _id: doc._id }, { $set: { lastHeartbeat: now }, $inc: { minutes: deltaMin } });
-  res.json({ ok: true });
-});
+  const ms = (now - (doc.startedAt ?? now)) || 0;
+  const minutes = Math.max(0, Math.round(ms / 60000));
 
-router.post("/session/end", async (req, res) => {
-  if (!ok(req, res)) return;
-  const { userId, serverId } = req.body || {};
-  if (!userId || !serverId) return res.status(400).json({ error: "Missing userId/serverId" });
+  await arch().insertOne({
+    userId,
+    serverId,
+    placeId: doc.placeId,
+    startedAt: doc.startedAt,
+    lastHeartbeat: doc.lastHeartbeat,
+    endedAt: now,
+    minutes,
+  });
 
-  const doc = await live().findOne({ userId, serverId });
-  if (doc) {
-    await arc().insertOne({
-      userId: doc.userId, serverId: doc.serverId, placeId: doc.placeId ?? null,
-      startedAt: doc.startedAt, endedAt: new Date(), minutes: Math.round(doc.minutes),
-    });
-    await live().deleteOne({ _id: doc._id });
-  }
-  res.json({ ok: true });
+  await live().deleteOne({ _id: doc._id });
+
+  res.json({ ok: true, archived: true, minutes });
 });
 
 export default router;
