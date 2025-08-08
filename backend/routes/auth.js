@@ -56,11 +56,6 @@ router.get("/callback", async (req, res) => {
   }
 });
 
-
-import axios from "axios";
-
-const GROUPID = parseInt(process.env.SURFARI_GROUP_ID, 10);
-
 async function getGroupRole(userId) {
   try {
     const { data } = await axios.get(`https://groups.roblox.com/v2/users/${userId}/groups/roles`);
