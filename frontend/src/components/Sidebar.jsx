@@ -7,6 +7,7 @@ const tabs = [
   { id: "activity", label: "Activity", icon: Activity },
   { id: "moderation", label: "Moderation", icon: Shield },
   { id: "orders", label: "Orders", icon: Store },
+  { key: "team", label: "Team", icon: Users },
 ];
 
 export default function Sidebar({ activeTab, setActiveTab }) {
