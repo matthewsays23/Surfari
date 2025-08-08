@@ -1,5 +1,5 @@
 import React from "react";
-import { Home, ClipboardList, Activity, Shield, Store, LogOut } from "lucide-react";
+import { Home, ClipboardList, Users, Activity, Shield, Store, LogOut } from "lucide-react";
 
 const tabs = [
   { id: "home", label: "Home", icon: Home },
