@@ -7,7 +7,7 @@ const tabs = [
   { id: "activity", label: "Activity", icon: Activity },
   { id: "moderation", label: "Moderation", icon: Shield },
   { id: "orders", label: "Orders", icon: Store },
-  { key: "team", label: "Team", icon: Users },
+  { id: "team", label: "Team", icon: Users }, // ✅ was `key`, should be `id`
 ];
 
 export default function Sidebar({ activeTab, setActiveTab }) {
@@ -26,7 +26,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
             key={t.id}
             onClick={() => setActiveTab(t.id)}
             className={`w-full flex items-center gap-3 px-4 py-2 rounded-xl transition
-            ${activeTab === t.id ? "bg-orange-500 text-white shadow" : "text-orange-800 hover:bg-orange-200/70"}`}
+              ${activeTab === t.id ? "bg-orange-500 text-white shadow" : "text-orange-800 hover:bg-orange-200/70"}`}
           >
             <t.icon className="w-5 h-5" />
             {t.label}
@@ -37,8 +37,8 @@ export default function Sidebar({ activeTab, setActiveTab }) {
       {/* Logout */}
       <button
         onClick={() => {
-          localStorage.removeItem("surfari_admin");
-          window.location.reload();
+          localStorage.removeItem("surfari_token"); // ✅ clear actual auth token
+          window.location.href = "https://surfari.onrender.com/auth/roblox"; // optional: force reauth
         }}
         className="mt-6 flex items-center gap-2 text-sm text-orange-600 hover:text-orange-700"
       >
