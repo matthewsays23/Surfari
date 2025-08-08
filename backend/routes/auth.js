@@ -56,6 +56,31 @@ router.get("/callback", async (req, res) => {
   }
 });
 
+
+router.get("/verify", async (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Missing token" });
+
+  const session = await sessions.findOne({ token });
+  const userId = session?.userId;
+  if (!userId) return res.status(403).json({ error: "Invalid token" });
+
+  try {
+    const response = await axios.get(`https://groups.roblox.com/v2/users/${userId}/groups/roles`);
+    const groups = response.data.data;
+
+    const surfariGroup = groups.find(g => g.group.id === GROUP_ID);
+    if (!surfariGroup || !ADMIN_ROLE_IDS.includes(surfariGroup.role.rank)) {
+      return res.status(403).json({ error: "User not an admin" });
+    }
+
+    return res.json({ status: "Access granted", userId });
+  } catch (err) {
+    console.error("Verify error:", err.message);
+    return res.status(500).json({ error: "Verification failed" });
+  }
+});
+
 async function getGroupRole(userId) {
   try {
     const { data } = await axios.get(`https://groups.roblox.com/v2/users/${userId}/groups/roles`);
@@ -67,11 +92,12 @@ async function getGroupRole(userId) {
   }
 }
 
+
 router.get("/team", async (req, res) => {
   const ids = process.env.SURFARI_ADMIN_USER_IDS.split(",").map(id => parseInt(id.trim(), 10));
   const rows = await Promise.all(
     ids.map(async id => {
-      const { data } = await axios.get(`https://users.roblox.com/v1/users/${id}`);
+      const { data } = await axios.get("https://users.roblox.com/v1/users/${id}");
       const roleData = await getGroupRole(id);
       return {
         userId: id,
@@ -83,6 +109,43 @@ router.get("/team", async (req, res) => {
     })
   );
   res.json(rows);
+});
+
+// ==== TEAM LIST (public read) ====
+// Add a comma-separated list of admin user IDs to your env:
+// SURFARI_ADMIN_USER_IDS=4872645848,123456,987654
+const ADMIN_USER_IDS = (process.env.SURFARI_ADMIN_USER_IDS || "")
+  .split(",")
+  .map(v => parseInt(v.trim(), 10))
+  .filter(Boolean);
+
+// Returns [{ userId, username, displayName, role: "Admin" }]
+router.get("/team", async (req, res) => {
+  try {
+    if (!ADMIN_USER_IDS.length) return res.json([]);
+
+    // Fetch Roblox user info for each ID (users.roblox.com works without auth)
+    const results = await Promise.all(
+      ADMIN_USER_IDS.map(async (id) => {
+        try {
+          const { data } = await axios.get(`https://users.roblox.com/v1/users/${id}`);
+          return {
+            userId: id,
+            username: data?.name || `User_${id}`,
+            displayName: data?.displayName || data?.name || `User_${id}`,
+            role: "Admin",
+          };
+        } catch {
+          return { userId: id, username: `User_${id}`, displayName: `User_${id}`, role: "Admin" };
+        }
+      })
+    );
+
+    res.json(results);
+  } catch (err) {
+    console.error("Team list error:", err.message);
+    res.status(500).json({ error: "Failed to load team" });
+  }
 });
 
 export default router;
