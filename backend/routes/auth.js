@@ -1,6 +1,6 @@
 import express from "express";
 import axios from "axios";
-import { db } from "../db.js";
+import db from "../db.js";
 
 const router = express.Router();
 const sessions = db.collection("sessions");
