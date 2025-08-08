@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import { initDb } from "./db.js";
-
+await initDb();
 import authRoutes from "./routes/auth.js";
 import robloxRoutes from "./routes/roblox.js";
 import statsRoutes from "./routes/stats.js";
