@@ -17,6 +17,7 @@ export async function initDb() {
   await db.collection("sessions_live").createIndex({ userId: 1, serverId: 1 }, { unique: true });
   await db.collection("sessions_live").createIndex({ lastHeartbeat: 1 });
   await db.collection("sessions_archive").createIndex({ userId: 1, endedAt: -1 });
+  await db.collection("calendar_sessions").createIndex({ start: 1 }, { unique: true, sparse: false });
 
   return db;
 }

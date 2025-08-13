@@ -5,6 +5,8 @@ import authRoutes from "./routes/auth.js";
 import robloxRoutes from "./routes/roblox.js";
 import statsRoutes from "./routes/stats.js";
 import ingestRoutes from "./routes/ingest.js";
+import sessionRoutes from "./routes/sessions.js";
+
 
 const app = express();
 
@@ -22,7 +24,7 @@ app.use("/auth", authRoutes);
 app.use("/roblox", robloxRoutes);
 app.use("/stats", statsRoutes);
 app.use("/ingest", ingestRoutes);  
-
+app.use("/sessions", sessionRoutes);
 
 app.get("/", (_req, res) => res.json({ status: "Surfari backend running" }));
 
