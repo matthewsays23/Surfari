@@ -21,7 +21,7 @@ export default function SurfariAdminApp() {
           {activeTab === "moderation" && <Moderation />}
           {activeTab === "orders" && <Orders />}
           {activeTab === "team" && <Team />}
-           {activeTab === "session" && <Sessions />}
+           {activeTab === "sessions" && <Sessions />}
         </main>
       </div>
     </AccessGate>
